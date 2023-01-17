@@ -2,7 +2,7 @@ import Notiflix from 'notiflix';
 import SimpleLightbox from 'simplelightbox';
 import SimpleLightbox from 'simplelightbox/dist/simple-lightbox.esm';
 import 'simplelightbox/dist/simple-lightbox.min.css';
-const axios = require('axios');
+import axios from 'axios';
 
 const API_KEY = '32819463-089d108b74804e81dbda92dfd';
 const BASE_URL = 'https://pixabay.com/api/';
@@ -22,17 +22,17 @@ const optionsForObserv = {
 let page = 1;
 let hits = 30;
 
-function onSearch(e) {
+async function onSearch(e) {
   e.preventDefault();
   console.dir(e.target.elements.searchQuery.value);
   const searchQuery = e.target.elements.searchQuery.value;
   const observer = new IntersectionObserver(onInfinityLoad, optionsForObserv);
-  fetchImage(searchQuery).then(data => {
-    console.log(data);
-    clearImages();
-    createMarkup(data.hits);
-    observer.observe(refs.guard);
-  });
+  const result = await fetchImage(searchQuery);
+  console.log(result);
+  currentHits = result.hits;
+  clearImages();
+  createMarkup(result.hits);
+  observer.observe(refs.guard);
 
   function createMarkup(images) {
     const markup = images
@@ -67,32 +67,25 @@ function onSearch(e) {
       .join('');
     refs.gallery.insertAdjacentHTML('beforeend', markup);
   }
-  function fetchImage(q) {
-    const url = `${BASE_URL}?key=${API_KEY}&q=${q}&image_type=photo&orientation=horizontal&safesearch=true&page=${page}&per_page=30`;
-    return fetch(url)
-      .then(resp => {
-        if (!resp.ok) {
-          throw new Error(resp.statusText);
-        }
-        return resp.json();
-      })
-      .catch(err => console.error(err));
-  }
-  function onInfinityLoad(entries) {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        page += 1;
-        hits += 30;
-        fetchImage(page).then(data => {
-          createMarkup(data.hits);
-          if (hits >= data.hits) {
-            observer.unobserve(refs.guard);
-          }
-        });
-      }
-    });
-  }
+
   function clearImages() {
     refs.gallery.innerHTML = '';
   }
+  async function onInfinityLoad(entries) {
+    entries.forEach(async entry => {
+      if (entry.isIntersecting) {
+        page += 1;
+        hits += 30;
+        const result = await fetchImage(page);
+        createMarkup(result.hits);
+        if (hits >= result.hits) {
+          observer.unobserve(refs.guard);
+        }
+      }
+    });
+  }
+}
+async function fetchImage(q) {
+  const url = `${BASE_URL}?key=${API_KEY}&q=${q}&image_type=photo&orientation=horizontal&safesearch=true&page=${page}&per_page=30`;
+  return await axios.get(url).then(response => response.data);
 }
