@@ -6,20 +6,25 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0" />
     <title>Homework 11</title>
+    <link rel="stylesheet"
+          href="css/style.css">
   </head>
 
   <body>
     <form class="search-form"
           id="search-form">
-      <input type="text"
+      <input class="search-form__input"
+             type="text"
              name="searchQuery"
              autocomplete="off"
              placeholder="Search images..." />
-      <button type="submit">Search</button>
+      <button class=search-form__btn
+              type="submit">Search</button>
     </form>
     <div class="gallery">
       <!-- Картки зображень -->
     </div>
+    <div class="js-guard"></div>
     <script src="index.js"
             type="module"></script>
   </body>
