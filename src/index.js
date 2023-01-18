@@ -1,6 +1,5 @@
 import Notiflix from 'notiflix';
 import SimpleLightbox from 'simplelightbox';
-import SimpleLightbox from 'simplelightbox/dist/simple-lightbox.esm';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 import axios from 'axios';
 
@@ -13,39 +12,44 @@ const refs = {
 };
 
 refs.form.addEventListener('submit', onSearch);
+
 const lightbox = new SimpleLightbox('.gallery a');
 const optionsForObserv = {
   root: null,
   rootMargin: '300px',
   threshold: 1.0,
 };
+let searchQuery = '';
 let page = 1;
-let hits = 30;
+let hits = 40;
 
 async function onSearch(e) {
   e.preventDefault();
   console.dir(e.target.elements.searchQuery.value);
-  const searchQuery = e.target.elements.searchQuery.value;
+  searchQuery = e.target.elements.searchQuery.value;
   const observer = new IntersectionObserver(onInfinityLoad, optionsForObserv);
 
   if (searchQuery === '') {
-    await clearImages();
     return;
   }
   const result = await fetchImage(searchQuery);
   console.log(result);
+
   try {
-    if (result.totalHits > 0) {
-      Notiflix.Notify.success(`Hooray! We found ${result.totalHits} images.`);
-      await clearImages();
-      await createMarkup(result.hits);
-      observer.observe(refs.guard);
-    }
     if (!result.totalHits) {
-      await clearImages();
+      clearImages();
+
       Notiflix.Notify.failure(
         'Sorry, there are no images matching your search query. Please try again.'
       );
+      return;
+    } else {
+      Notiflix.Notify.success(`Hooray! We found ${result.totalHits} images.`);
+      clearImages();
+      await createMarkup(result.hits);
+
+      observer.observe(refs.guard);
+      lightbox.refresh();
     }
   } catch (err) {
     console.log(err);
@@ -63,11 +67,11 @@ async function onSearch(e) {
           comments,
           downloads,
         }) =>
-          `<a href="${largeImageURL}"><div class="photo-card">
-    <img src="${webformatURL}" alt="${tags}" loading="lazy" />
+          `<a class="link" href="${largeImageURL}"><div class="photo-card">
+    <img class="image" src="${webformatURL}" alt="${tags}" loading="lazy" />
     <div class="info">
-      <p class="info-item"
-        <b>Likes</b>>${likes}
+      <p class="info-item">
+        <b>Likes</b>${likes}
       </p>
       <p class="info-item">
         <b>Views</b>${views}
@@ -82,27 +86,26 @@ async function onSearch(e) {
   </div></a>`
       )
       .join('');
+
     refs.gallery.insertAdjacentHTML('beforeend', markup);
   }
 
-  async function clearImages() {
-    refs.gallery.innerHTML = '';
-  }
   async function onInfinityLoad(entries) {
     entries.forEach(async entry => {
       if (entry.isIntersecting) {
         page += 1;
-        hits += 30;
-        const result = await fetchImage(page);
+        hits += 40;
+        const result = await fetchImage(searchQuery, page);
         try {
-          if (result.totalHits > 0) {
+          if (!result.totalHits) {
+            clearImages();
+            return;
+          } else {
             await createMarkup(result.hits);
-            if (hits >= result.hits) {
+            lightbox.refresh();
+            if (hits > result.totalHits) {
               observer.unobserve(refs.guard);
             }
-          }
-          if (!result.totalHits) {
-            await clearImages();
           }
         } catch (err) {
           console.log(err);
@@ -110,8 +113,11 @@ async function onSearch(e) {
       }
     });
   }
+  function clearImages() {
+    refs.gallery.innerHTML = '';
+  }
 }
-async function fetchImage(q) {
+async function fetchImage(q, page) {
   const url = `${BASE_URL}?key=${API_KEY}&q=${q}&image_type=photo&orientation=horizontal&safesearch=true&page=${page}&per_page=40`;
   return await axios.get(url).then(response => response.data);
 }
